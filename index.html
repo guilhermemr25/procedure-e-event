@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQL MASTER: Procedures, Transações & Events</title>
+
+  <!-- Google Fonts: Sora, Inter, Space Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      color-scheme: dark;
+
+      /* Colors inspired by neon noir & print reference */
+      --background: #090812;
+      --surface-container-low: #0f0e1a;
+      --surface-container: #141324;
+      --surface-container-high: #1c1b32;
+      --surface-container-highest: #262442;
+
+      /* Text */
+      --on-surface: #e9e6f2;
+      --on-surface-variant: #9d95b0;
+      --on-surface-subtle: #6e6680;
+
+      /* Lines & Borders */
+      --outline: #4a425c;
+      --outline-variant: #282438;
+
+      /* Neon accents */
+      --primary: #ff2a73;
+      --primary-container: #a30045;
+      --secondary: #00ffca;
+      --secondary-container: #005241;
+      --tertiary: #ffe047;
+
+      --positive: #00ffca;
+      --warning: #ffe047;
+      --error: #ff4455;
+
+      /* Fonts */
+      --font-headline: 'Sora', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-label: 'Space Mono', monospace;
+
+      /* Visual Effects */
+      --glow-text: 0 0 8px currentColor;
+      --glow-primary: 0 0 16px rgba(255, 42, 115, 0.4);
+      --glow-secondary: 0 0 16px rgba(0, 255, 202, 0.35);
+      --neon-border-pink: 1px solid rgba(255, 42, 115, 0.35);
+      --neon-border-cyan: 1px solid rgba(0, 255, 202, 0.35);
+      --scanlines: repeating-linear-gradient(to bottom, transparent 0 3px, rgba(255, 255, 255, 0.015) 3px 4px);
+    }
+
+    /* Base Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background-color: var(--background);
+      background-image: var(--scanlines);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-viewport {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Typography */
+    .headline-font { font-family: var(--font-headline); font-weight: 700; }
+    .label-font { font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    /* Header HUD */
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: 6px;
+    }
+
+    .hud-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: var(--font-headline);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .logo-icon {
+      width: 26; 
+      height: 26;
+      background: var(--primary);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    .logo-tag {
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      color: var(--secondary);
+      border: var(--neon-border-cyan);
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-left: 6px;
+    }
+
+    .audio-btn {
+      background: transparent;
+      border: var(--neon-border-cyan);
+      color: var(--secondary);
+      padding: 0.4rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .audio-btn:hover {
+      background: rgba(0, 255, 202, 0.1);
+      box-shadow: var(--glow-secondary);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: var(--font-label);
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.85rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      outline: none;
+      border: none;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: transparent;
+      color: var(--primary);
+      border: var(--neon-border-pink);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: rgba(255, 42, 115, 0.15);
+      border-color: var(--primary);
+      box-shadow: var(--glow-primary);
+      color: #fff;
+    }
+
+    .btn-submit-main {
+      width: 100%;
+      background: rgba(255, 42, 115, 0.08);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .btn-submit-main:hover {
+      background: var(--primary);
+      color: #000;
+      box-shadow: var(--glow-primary);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Screen Views */
+    .screen-view {
+      display: none;
+      flex-direction: column;
+      gap: 1.5rem;
+      width: 100%;
+    }
+
+    .screen-view.is-active {
+      display: flex;
+    }
+
+    /* PAGE 1: HOME (PRINT MATCH) */
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 850px) {
+      .home-grid {
+        grid-template-columns: 1.35fr 1fr;
+      }
+    }
+
+    .home-card-main {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: 6px;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      position: relative;
+    }
+
+    .kicker-tag {
+      font-family: var(--font-label);
+      font-size: 0.725rem;
+      color: var(--secondary);
+      letter-spacing: 0.12em;
+    }
+
+    .home-title {
+      font-size: clamp(1.6rem, 2.2vw, 2.2rem);
+      line-height: 1.2;
+      color: #fff;
+    }
+
+    .home-desc {
+      color: var(--on-surface-variant);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .input-label {
+      font-family: var(--font-label);
+      font-size: 0.725rem;
+      color: var(--on-surface-variant);
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .text-input {
+      width: 100%;
+      background: #0b0a14;
+      border: 1px solid var(--outline);
+      border-bottom: 2px solid var(--primary);
+      color: #fff;
+      font-family: var(--font-label);
+      font-size: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 4px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .text-input:focus {
+      border-color: var(--primary);
+      box-shadow: var(--glow-primary);
+    }
+
+    .home-card-side {
+      background: var(--surface-container);
+      border: var(--neon-border-cyan);
+      border-radius: 6px;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .side-title {
+      font-family: var(--font-label);
+      font-size: 0.8rem;
+      color: var(--secondary);
+    }
+
+    .side-heading {
+      font-size: 1.35rem;
+      color: #fff;
+    }
+
+    .rules-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      font-size: 0.875rem;
+      color: var(--on-surface-variant);
+    }
+
+    .rules-list li {
+      position: relative;
+      padding-left: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .rules-list li::before {
+      content: '▶';
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-size: 0.7rem;
+      top: 2px;
+    }
+
+    .side-footer-text {
+      font-size: 0.775rem;
+      color: var(--on-surface-subtle);
+      border-top: 1px solid var(--outline-variant);
+      padding-top: 1rem;
+      line-height: 1.5;
+    }
+
+    /* Bottom Cards Grid */
+    .home-bottom-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .bottom-card {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: 6px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .bottom-card-tag {
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      color: var(--secondary);
+    }
+
+    .bottom-card-title {
+      font-family: var(--font-headline);
+      font-size: 1rem;
+      color: #fff;
+    }
+
+    .bottom-card-desc {
+      font-size: 0.825rem;
+      color: var(--on-surface-variant);
+      line-height: 1.45;
+    }
+
+    /* PAGE 2: GAMEPLAY */
+    .game-hud-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .level-badge {
+      font-family: var(--font-label);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: var(--surface-container-high);
+      border: 1px solid var(--outline);
+      color: var(--secondary);
+    }
+
+    .level-badge.facil { color: var(--secondary); border-color: var(--secondary); }
+    .level-badge.medio { color: var(--tertiary); border-color: var(--tertiary); }
+    .level-badge.dificil { color: var(--primary); border-color: var(--primary); }
+
+    .score-badge {
+      font-family: var(--font-label);
+      font-size: 0.9rem;
+      color: #fff;
+    }
+
+    .timer-wrapper {
+      width: 100%;
+      height: 8px;
+      background: var(--surface-container-high);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .timer-bar {
+      height: 100%;
+      width: 100%;
+      background: var(--secondary);
+      box-shadow: var(--glow-secondary);
+      transform-origin: left center;
+      transition: transform 0.1s linear, background-color 0.3s ease;
+    }
+
+    .timer-warning { background: var(--tertiary); }
+    .timer-danger { background: var(--error); box-shadow: 0 0 12px var(--error); }
+
+    .question-panel {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: 6px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .question-text {
+      font-family: var(--font-headline);
+      font-size: 1.2rem;
+      color: #fff;
+      line-height: 1.4;
+    }
+
+    .sql-code-box {
+      background: #090812;
+      border: 1px solid var(--outline);
+      border-left: 3px solid var(--secondary);
+      padding: 1rem;
+      border-radius: 4px;
+      font-family: var(--font-label);
+      font-size: 0.85rem;
+      color: var(--on-surface);
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+
+    .sql-keyword { color: var(--primary); font-weight: bold; }
+    .sql-comment { color: var(--on-surface-subtle); font-style: italic; }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.85rem;
+    }
+
+    @media (min-width: 650px) {
+      .options-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .option-btn {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline);
+      border-radius: 4px;
+      padding: 1rem;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      transition: all 0.2s ease;
+      color: var(--on-surface);
+      min-height: 60px;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      border-color: var(--primary);
+      box-shadow: var(--glow-primary);
+      background: var(--surface-container-high);
+    }
+
+    .option-key {
+      font-family: var(--font-label);
+      font-size: 0.8rem;
+      color: var(--primary);
+      border: 1px solid rgba(255, 42, 115, 0.4);
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .option-btn.is-correct {
+      border-color: var(--positive) !important;
+      background: rgba(0, 255, 202, 0.12) !important;
+    }
+
+    .option-btn.is-correct .option-key {
+      color: var(--positive);
+      border-color: var(--positive);
+    }
+
+    .option-btn.is-wrong {
+      border-color: var(--error) !important;
+      background: rgba(255, 68, 85, 0.12) !important;
+    }
+
+    .option-btn.is-wrong .option-key {
+      color: var(--error);
+      border-color: var(--error);
+    }
+
+    .feedback-drawer {
+      background: #0b0a14;
+      border: 1px solid var(--outline);
+      border-radius: 6px;
+      padding: 1.25rem;
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .feedback-drawer.is-visible { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* PAGE 3: RESULTS */
+    .results-hero {
+      background: var(--surface-container);
+      border: var(--neon-border-pink);
+      border-radius: 6px;
+      padding: 2rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .rank-trophy { font-size: 3rem; }
+    .rank-title { font-size: 1.8rem; color: var(--primary); text-shadow: var(--glow-text); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat-card {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      padding: 1rem;
+      border-radius: 4px;
+    }
+
+    .stat-label {
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      color: var(--on-surface-variant);
+      margin-bottom: 0.4rem;
+    }
+
+    .stat-val {
+      font-family: var(--font-label);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .review-accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .review-item {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .review-header {
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background: var(--surface-container);
+    }
+
+    .review-header:hover { background: var(--surface-container-high); }
+
+    .review-status {
+      font-family: var(--font-label);
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    .status-ok { background: rgba(0, 255, 202, 0.15); color: var(--positive); border: 1px solid var(--positive); }
+    .status-err { background: rgba(255, 68, 85, 0.15); color: var(--error); border: 1px solid var(--error); }
+
+    .review-content {
+      padding: 1rem;
+      display: none;
+      flex-direction: column;
+      gap: 0.6rem;
+      font-size: 0.875rem;
+      border-top: 1px solid var(--outline-variant);
+      background: #0a0914;
+    }
+
+    .review-content.is-open { display: flex; }
+  </style>
+</head>
+<body>
+
+  <div class="app-viewport">
+
+    <!-- Header HUD -->
+    <header class="hud-header">
+      <div class="hud-brand">
+        <div class="logo-icon">SQL</div>
+        <div class="logo-badge">
+          SQL MASTER
+          <span class="logo-tag">PROCEDURES & EVENTS</span>
+        </div>
+      </div>
+
+      <button type="button" class="audio-btn" id="audio-toggle-btn" aria-label="Alternar som">
+        <svg id="audio-icon-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="audio-icon-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+    </header>
+
+    <!-- PAGE 1: HOME (DESIGN EQUIVALENTE AO PRINT) -->
+    <main id="screen-home" class="screen-view is-active">
+      <div class="home-grid">
+
+        <!-- Left Main Form Card -->
+        <div class="home-card-main">
+          <div>
+            <span class="kicker-tag">MÓDULO INTERATIVO DE AVALIAÇÃO</span>
+            <h1 class="headline-font home-title" style="margin-top: 0.4rem;">
+              Domine Stored Procedures, Transações e Eventos
+            </h1>
+          </div>
+
+          <p class="home-desc">
+            Teste suas habilidades de banco de dados no PostgreSQL e MySQL. Enfrente 15 desafios com dificuldade progressiva, cronômetro de resposta rápida, sistema dinâmico de combos e explicações aprofundadas.
+          </p>
+
+          <form id="start-form" onsubmit="handleStartGame(event)" style="display: flex; flex-direction: column; gap: 1rem; margin-top: auto;">
+            <div>
+              <label for="player-name" class="input-label">NOME DO JOGADOR / ALIAS DBA:</label>
+              <input type="text" id="player-name" class="text-input" placeholder="Ex: DevAna, Carlos_DBA, MariaSQL" required autocomplete="off" maxlength="25">
+            </div>
+
+            <button type="submit" class="btn btn-submit-main">
+              <span>▶ INICIAR DESAFIO SQL</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Right Rules Side Card -->
+        <div class="home-card-side">
+          <div>
+            <span class="side-title">ESTRUTURA DO DESAFIO</span>
+            <h2 class="headline-font side-heading" style="margin-top: 0.3rem;">Progressão e Pontuação</h2>
+          </div>
+
+          <ul class="rules-list">
+            <li><strong>3 Níveis Progressivos:</strong> Fácil (100 pts), Médio (200 pts) e Difícil (300 pts).</li>
+            <li><strong>Combo Multiplicador:</strong> Sequências corretas ativam bônus de até 2.0x!</li>
+            <li><strong>Bônus de Rapidez:</strong> Responda depressa no cronômetro para até +100 pts extras.</li>
+            <li><strong>Opções Aleatorizadas:</strong> Cada tentativa embaralha as alternativas.</li>
+          </ul>
+
+          <div class="side-footer-text">
+            Conteúdo referenciado: Stored Procedures, comando CALL, Transações (BEGIN, COMMIT, ROLLBACK), agendamentos com pg_cron e eventos no MySQL.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Feature Cards (3 Cards matching print) -->
+      <div class="home-bottom-grid">
+        <div class="bottom-card">
+          <span class="bottom-card-tag">01 // PROCEDURES & CALL</span>
+          <h3 class="bottom-card-title">Stored Procedures & CALL</h3>
+          <p class="bottom-card-desc">Automação de rotinas no servidor, passagem de parâmetros, comando CALL isolado versus consultas com SELECT.</p>
+        </div>
+
+        <div class="bottom-card">
+          <span class="bottom-card-tag">02 // TRANSAÇÕES ACID</span>
+          <h3 class="bottom-card-title">Gerenciamento Transacional</h3>
+          <p class="bottom-card-desc">Regra do "tudo ou nada", marcos com BEGIN, persistência permanente com COMMIT e reversão de integridade com ROLLBACK.</p>
+        </div>
+
+        <div class="bottom-card">
+          <span class="bottom-card-tag">03 // EVENTOS & AGENDAMENTO</span>
+          <h3 class="bottom-card-title">Eventos & Agendamento</h3>
+          <p class="bottom-card-desc">CREATE EVENT no MySQL, agendamento de jobs com pg_cron no PostgreSQL, blocos anônimos com pg_sleep e batching.</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- PAGE 2: GAMEPLAY -->
+    <main id="screen-gameplay" class="screen-view">
+      <div class="game-hud-bar">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span id="level-badge" class="level-badge facil">NÍVEL FÁCIL</span>
+          <span id="question-counter" class="label-font" style="font-size: 0.8rem; color: var(--on-surface-variant);">Questão 1 de 15</span>
+        </div>
+        <div class="score-badge">
+          PONTOS: <span id="hud-score" style="color: var(--secondary); font-weight: 700;">0</span>
+          <span id="hud-combo" style="margin-left: 0.5rem; color: var(--tertiary); font-size: 0.8rem;">(1.0x)</span>
+        </div>
+      </div>
+
+      <!-- 30-Second Countdown Bar -->
+      <div class="timer-wrapper" title="Tempo restante: 30 segundos por pergunta">
+        <div id="timer-bar" class="timer-bar"></div>
+      </div>
+
+      <!-- Question Card -->
+      <div class="question-panel">
+        <p id="question-stem" class="question-text">Carregando pergunta...</p>
+
+        <div id="sql-box" class="sql-code-box" style="display: none;"></div>
+
+        <div id="options-container" class="options-grid"></div>
+
+        <!-- Feedback Drawer -->
+        <div id="feedback-drawer" class="feedback-drawer">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="feedback-title" class="headline-font" style="font-size: 1.1rem;"></h3>
+            <span id="feedback-pts" class="label-font" style="font-size: 0.85rem;"></span>
+          </div>
+          <p id="feedback-exp" style="font-size: 0.9rem; color: var(--on-surface-variant); line-height: 1.5;"></p>
+          <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+            <button type="button" class="btn btn-primary" onclick="handleNextQuestion()">
+              <span>PRÓXIMA PERGUNTA ▶</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- PAGE 3: RESULTS -->
+    <main id="screen-results" class="screen-view">
+      <div class="results-hero">
+        <div id="res-trophy" class="rank-trophy">🏆</div>
+        <span class="kicker-tag">// AVALIAÇÃO CONCLUÍDA</span>
+        <h1 id="res-rank-title" class="headline-font rank-title">DBA Master SQL</h1>
+        <p id="res-rank-desc" style="color: var(--on-surface-variant); max-width: 600px; font-size: 0.95rem;"></p>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-primary" onclick="restartGame()">
+            <span>🔄 JOGAR NOVAMENTE</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">PONTUAÇÃO TOTAL</div>
+          <div id="res-score" class="stat-val" style="color: var(--secondary);">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">TAXA DE ACERTO</div>
+          <div id="res-accuracy" class="stat-val" style="color: var(--tertiary);">0%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">MAIOR COMBO</div>
+          <div id="res-combo" class="stat-val">0x</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">TEMPO MÉDIO</div>
+          <div id="res-speed" class="stat-val">0s</div>
+        </div>
+      </div>
+
+      <div class="question-panel">
+        <h3 class="label-font" style="color: var(--secondary); font-size: 0.85rem;">REVISÃO COMPLETA (15 QUESTÕES)</h3>
+        <div id="review-list" class="review-accordion"></div>
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    /* ==========================================================================
+       SOUND ENGINE (Web Audio API - Direct Synth)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContextClass();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playCorrect() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + i * 0.08);
+            gain.gain.setValueAtTime(0.08, now + i * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.08);
+            osc.stop(now + i * 0.08 + 0.25);
+          });
+        } catch(e){}
+      }
+      playWrong() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [220, 164].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now + i * 0.12);
+            gain.gain.setValueAtTime(0.09, now + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.25);
+          });
+        } catch(e){}
+      }
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+    }
+    const sounds = new SoundEngine();
+
+    /* ==========================================================================
+       15 QUESTIONS BANK (5 EASY, 5 MEDIUM, 5 HARD)
+       Homogeneous length across ALL options for every question (Zero length bias!)
+       ========================================================================== */
+    const QUESTION_BANK = [
+      // --- FÁCIL (1 a 5) - 100 PTS ---
+      {
+        id: 1,
+        difficulty: 'facil',
+        levelLabel: 'NÍVEL FÁCIL (100 PTS)',
+        basePoints: 100,
+        stem: 'O que caracteriza essencialmente uma Stored Procedure em um banco de dados?',
+        code: `CREATE OR REPLACE PROCEDURE cadastrar_usuario(nome VARCHAR)\nLANGUAGE plpgsql AS $$\nBEGIN\n    INSERT INTO usuarios(nome) VALUES (nome);\nEND;\n$$;`,
+        options: [
+          'Bloco de comandos SQL salvo no banco para execução contínua e reuso.',
+          'Visão dinâmica criada apenas para consultas rápidas de leitura com SELECT.',
+          'Arquivo temporário salvo localmente na máquina do desenvolvedor web.',
+          'Chave primária especial para indexação automática de tabelas do esquema.'
+        ],
+        correctIndex: 0,
+        explanation: 'Uma Stored Procedure é um conjunto de comandos SQL compilado e armazenado no próprio SGBD. Ela encapsula regras de negócio e rotinas frequentes para execução rápida no servidor.'
+      },
+      {
+        id: 2,
+        difficulty: 'facil',
+        levelLabel: 'NÍVEL FÁCIL (100 PTS)',
+        basePoints: 100,
+        stem: 'Qual comando SQL padrão é utilizado para invocar e executar uma Stored Procedure?',
+        code: `-- Qual instrução executa a procedure abaixo?\n_____ atualizar_estoque(105, 50);`,
+        options: [
+          'Comando CALL.',
+          'Comando SELECT.',
+          'Comando RUN.',
+          'Comando FETCH.'
+        ],
+        correctIndex: 0,
+        explanation: 'O comando CALL é a instrução padrão do SQL (utilizada no PostgreSQL e MySQL) para invocar e executar procedimentos armazenados.'
+      },
+      {
+        id: 3,
+        difficulty: 'facil',
+        levelLabel: 'NÍVEL FÁCIL (100 PTS)',
+        basePoints: 100,
+        stem: 'O que garante a regra do "tudo ou nada" em transações de banco de dados (Atomicidade)?',
+        code: `BEGIN;\n  UPDATE conta SET saldo = saldo - 100 WHERE id = 1;\n  UPDATE conta SET saldo = saldo + 100 WHERE id = 2;\nCOMMIT;`,
+        options: [
+          'Todas as operações do bloco gravam com êxito ou o processo é cancelado.',
+          'Metade das instruções altera o banco e o restante é descartado sem aviso.',
+          'O sistema escolhe aleatoriamente quais tabelas devem receber os dados.',
+          'Apenas os comandos de exclusão são revertidos se ocorrer erro de sistema.'
+        ],
+        correctIndex: 0,
+        explanation: 'A propriedade de Atomicidade garante que todas as operações dentro de uma transação sejam concluídas com sucesso. Se ocorrer qualquer falha, toda a transação é revertida.'
+      },
+      {
+        id: 4,
+        difficulty: 'facil',
+        levelLabel: 'NÍVEL FÁCIL (100 PTS)',
+        basePoints: 100,
+        stem: 'Qual comando é utilizado para confirmar e tornar permanentes as alterações de uma transação?',
+        code: `BEGIN;\n  INSERT INTO clientes (nome) VALUES ('Ana');\n  ---- ? ---- ; -- Efetiva a gravação`,
+        options: [
+          'Comando COMMIT.',
+          'Comando ROLLBACK.',
+          'Comando SAVEPOINT.',
+          'Comando END.'
+        ],
+        correctIndex: 0,
+        explanation: 'O comando COMMIT encerra a transação salvando todas as modificações permanentemente no banco de dados, tornando-as visíveis a outros usuários.'
+      },
+      {
+        id: 5,
+        difficulty: 'facil',
+        levelLabel: 'NÍVEL FÁCIL (100 PTS)',
+        basePoints: 100,
+        stem: 'Qual comando desfaz todas as alterações realizadas desde a abertura do bloco de transação?',
+        code: `BEGIN;\n  DELETE FROM pedidos;\n  -- Identificado erro fatal!\n  ---- ? ---- ;`,
+        options: [
+          'Comando ROLLBACK.',
+          'Comando COMMIT.',
+          'Comando UNDO.',
+          'Comando RESTORE.'
+        ],
+        correctIndex: 0,
+        explanation: 'O comando ROLLBACK cancela a transação atual, revertendo o estado dos dados para exatamente como estavam antes da instrução BEGIN.'
+      },
+
+      // --- MÉDIO (6 a 10) - 200 PTS ---
+      {
+        id: 6,
+        difficulty: 'medio',
+        levelLabel: 'NÍVEL MÉDIO (200 PTS)',
+        basePoints: 200,
+        stem: 'Qual é a principal diferença de comportamento entre o comando CALL e o SELECT?',
+        code: `-- Qual a diferença de uso entre:\nCALL processar_folha();\nSELECT * FROM funcionarios;`,
+        options: [
+          'CALL roda procedimentos de rotina; SELECT consulta registros de tabelas.',
+          'CALL serve para apagar tabelas; SELECT cria novos campos de índice no banco.',
+          'CALL exporta relatórios; SELECT executa triggers de alteração no servidor.',
+          'CALL altera chaves primárias; SELECT calcula funções matemáticas do sistema.'
+        ],
+        correctIndex: 0,
+        explanation: 'CALL é usado para executar rotinas imperativas (procedures) que processam dados sem obrigatoriedade de retornar tabelas. SELECT é usado para consultar e projetar conjuntos de dados.'
+      },
+      {
+        id: 7,
+        difficulty: 'medio',
+        levelLabel: 'NÍVEL MÉDIO (200 PTS)',
+        basePoints: 200,
+        stem: 'Por que o comando CREATE EVENT do MySQL gera erro de sintaxe se executado nativamente no PostgreSQL?',
+        code: `-- No MySQL: CREATE EVENT limpar_logs ON SCHEDULE EVERY 1 DAY DO ...\n-- No PostgreSQL: ERRO DE SINTAXE! Por quê?`,
+        options: [
+          'PostgreSQL não traz agendador nativo igual, usando extensões como pg_cron.',
+          'PostgreSQL bloqueia por padrão qualquer tarefa de segundo plano no sistema.',
+          'PostgreSQL só aceita comandos de rotina criados na linguagem Python puro.',
+          'PostgreSQL exige que o servidor esteja instalado no ambiente Linux Ubuntu.'
+        ],
+        correctIndex: 0,
+        explanation: 'O PostgreSQL não possui a sintaxe nativa CREATE EVENT (presente no MySQL). Para agendamentos internos no PostgreSQL, utiliza-se a extensão pg_cron ou ferramentas externas do SO (como o cron do Linux).'
+      },
+      {
+        id: 8,
+        difficulty: 'medio',
+        levelLabel: 'NÍVEL MÉDIO (200 PTS)',
+        basePoints: 200,
+        stem: 'O que caracteriza a ocorrência de um Deadlock em sistemas de banco de dados concorrentes?',
+        code: `-- Sessão 1 trava Tabela A e aguarda Tabela B\n-- Sessão 2 trava Tabela B e aguarda Tabela A\n-- O que acontece?`,
+        options: [
+          'Bloqueio mútuo onde duas transações esperam o mesmo recurso preso pela outra.',
+          'Superaquecimento do processador por falta de índices nas chaves primárias.',
+          'Exclusão automática de registros salvos nas tabelas ao longo do expediente.',
+          'Encerramento do serviço do PostgreSQL exigindo reinício manual do servidor.'
+        ],
+        correctIndex: 0,
+        explanation: 'Deadlock ocorre quando duas ou mais transações possuem bloqueios (locks) exclusivos em recursos diferentes e cada uma tenta bloquear o recurso mantido pela outra, gerando um impasse que o SGBD precisa abortar.'
+      },
+      {
+        id: 9,
+        difficulty: 'medio',
+        levelLabel: 'NÍVEL MÉDIO (200 PTS)',
+        basePoints: 200,
+        stem: 'Por que manter transações curtas é considerado uma regra fundamental de boas práticas de DBA?',
+        code: `-- Transação Curta vs Longa:\nBEGIN;\n  -- Apenas a instrução estritamente necessária\nCOMMIT;`,
+        options: [
+          'Reduz o tempo de retenção de locks, evitando filas e gargalos de concorrência.',
+          'Evita que a chave primária auto-incrementável pule a contagem de números.',
+          'Diminui o tamanho do arquivo de backup compactado gerado ao fim da noite.',
+          'Elimina a necessidade de criar chaves estrangeiras entre tabelas conectadas.'
+        ],
+        correctIndex: 0,
+        explanation: 'Transações longas prendem bloqueios (locks) em linhas e tabelas por muito tempo, impedindo que outras conexões trabalhem e causando lentidão grave e deadlocks.'
+      },
+      {
+        id: 10,
+        difficulty: 'medio',
+        levelLabel: 'NÍVEL MÉDIO (200 PTS)',
+        basePoints: 200,
+        stem: 'Em um bloco transacional aberto (após BEGIN), em que estado ficam os dados alterados antes do COMMIT?',
+        code: `BEGIN;\n  UPDATE produtos SET preco = 50.00 WHERE id = 10;\n  -- Ainda não houve COMMIT nem ROLLBACK!`,
+        options: [
+          'Ficam visíveis só para a própria sessão e em estado pendente de confirmação.',
+          'Ficam públicos para todos os usuários conectados no banco instantaneamente.',
+          'Ficam gravados em uma pasta temporária externa dentro do sistema operacional.',
+          'Ficam salvos como arquivos de texto criptografados no servidor do cliente.'
+        ],
+        correctIndex: 0,
+        explanation: 'Antes do COMMIT, as alterações permanecem isoladas na sessão atual (propriedade de Isolamento). As demais conexões continuam enxergando a versão anterior dos dados.'
+      },
+
+      // --- DIFÍCIL (11 a 15) - 300 PTS ---
+      {
+        id: 11,
+        difficulty: 'dificil',
+        levelLabel: 'NÍVEL DIFÍCIL (300 PTS)',
+        basePoints: 300,
+        stem: 'Qual extensão de código aberto é a solução padrão recomendada para agendar jobs cron no PostgreSQL?',
+        code: `-- Ativando agendador no PostgreSQL:\nCREATE EXTENSION IF NOT EXISTS ______;`,
+        options: [
+          'Extensão pg_cron',
+          'Extensão pg_task',
+          'Extensão pg_agent',
+          'Extensão pg_timer'
+        ],
+        correctIndex: 0,
+        explanation: 'A extensão pg_cron executa como um background worker dentro do PostgreSQL, permitindo agendar comandos SQL diretamente no banco com a mesma sintaxe do cron do Linux.'
+      },
+      {
+        id: 12,
+        difficulty: 'dificil',
+        levelLabel: 'NÍVEL DIFÍCIL (300 PTS)',
+        basePoints: 300,
+        stem: 'Analise a expressão cron: `SELECT cron.schedule(\'job\', \'40 13 7 11 *\', \'UPDATE...\');`. Quando ela roda?',
+        code: `-- Expressão Cron: '40 13 7 11 *'`,
+        options: [
+          'Às 13h40 no dia 7 de novembro (Mês 11), em qualquer dia da semana.',
+          'A cada 40 minutos entre 13h e 19h durante todo o mês de julho.',
+          'No dia 40 de cada mês exatamente às 13 horas e 7 minutos da tarde.',
+          'Apenas nos domingos do mês de novembro às 13 horas e 40 minutos.'
+        ],
+        correctIndex: 0,
+        explanation: 'Os 5 campos do cron representam: Minuto (40), Hora (13), Dia do Mês (7), Mês (11 = Novembro) e Dia da Semana (* = qualquer dia). Portanto: 13h40 do dia 07/11.'
+      },
+      {
+        id: 13,
+        difficulty: 'dificil',
+        levelLabel: 'NÍVEL DIFÍCIL (300 PTS)',
+        basePoints: 300,
+        stem: 'No bloco anônimo abaixo, qual a utilidade prática da função `pg_sleep`?',
+        code: `DO $$\nBEGIN\n    PERFORM pg_sleep(10);\n    UPDATE relatorio SET status = 'concluido';\nEND;\n$$;`,
+        options: [
+          'Pausar temporariamente a execução por um tempo definido (ex: 10 segundos).',
+          'Derrubar conexões ativas para executar desfragmentação física de disco.',
+          'Esvaziar a memória RAM para evitar sobrecarga no buffer pool do sistema.',
+          'Desativar os índices da tabela durante o processo de gravação de dados.'
+        ],
+        correctIndex: 0,
+        explanation: 'A função pg_sleep(segundos) faz com que a sessão/processo atual aguarde o tempo especificado antes de prosseguir com as próximas instruções SQL.'
+      },
+      {
+        id: 14,
+        difficulty: 'dificil',
+        levelLabel: 'NÍVEL DIFÍCIL (300 PTS)',
+        basePoints: 300,
+        stem: 'Por que o processamento em lotes (batching) é crucial ao atualizar/deletar milhões de registros?',
+        code: `-- Em vez de 1 DELETE em 10 milhões de linhas:\nDELETE FROM logs WHERE id IN (SELECT id FROM logs LIMIT 50000);`,
+        options: [
+          'Evita locks prolongados e previne a explosão do tamanho dos arquivos WAL.',
+          'Garante que as chaves estrangeiras não fiquem desativadas no banco.',
+          'Permite executar a operação sem ter conexão ativa com o PostgreSQL.',
+          'Compacta o tamanho do banco de dados em arquivos ZIP automaticamente.'
+        ],
+        correctIndex: 0,
+        explanation: 'Processar grandes volumes em lotes (batching) evita manter locks exclusivos por longos períodos e impede que os arquivos de log de transação (WAL/redo log) cresçam desmesuradamente.'
+      },
+      {
+        id: 15,
+        difficulty: 'dificil',
+        levelLabel: 'NÍVEL DIFÍCIL (300 PTS)',
+        basePoints: 300,
+        stem: 'Por que é fundamental registrar falhas em tabelas de auditoria dentro de rotinas agendadas (jobs)?',
+        code: `BEGIN\n    -- Comando SQL do Job\nEXCEPTION WHEN OTHERS THEN\n    INSERT INTO log_erros(mensagem, data) VALUES (SQLERRM, NOW());\nEND;`,
+        options: [
+          'Como jobs rodam em background, falhas sem log passariam despercebidas.',
+          'Porque o PostgreSQL reinicia a base se houver erros em jobs de segundo plano.',
+          'Porque o compilador recusa procedures sem bloco explícito de exceção.',
+          'Porque o agendador pg_cron exige tabelas de erro para registrar os dados.'
+        ],
+        correctIndex: 0,
+        explanation: 'Como tarefas agendadas em background rodam de forma autônoma (sem uma sessão interativa de usuário), qualquer erro que não seja gravado em log/tabela de auditoria ficará totalmente invisível para a equipe de DBA.'
+      }
+    ];
+
+    /* ==========================================================================
+       GAME STATE
+       ========================================================================== */
+    let game = {
+      playerName: '',
+      currentIndex: 0,
+      score: 0,
+      streak: 0,
+      maxStreak: 0,
+      correctCount: 0,
+      timer: null,
+      timeLeft: 30,
+      startTime: 0,
+      totalTimeTaken: 0,
+      isAnswered: false,
+      log: []
+    };
+
+    /* Helper: Embaralhar array (Fisher-Yates) com semente aleatória reforçada */
+    function shuffle(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    /* Screen Management */
+    function showScreen(id) {
+      document.querySelectorAll('.screen-view').forEach(s => s.classList.remove('is-active'));
+      const target = document.getElementById(id);
+      if (target) target.classList.add('is-active');
+    }
+
+    /* Handle Game Start */
+    function handleStartGame(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('player-name');
+      const name = input ? input.value.trim() : '';
+
+      if (!name) return;
+
+      sounds.init();
+
+      game = {
+        playerName: name,
+        currentIndex: 0,
+        score: 0,
+        streak: 0,
+        maxStreak: 0,
+        correctCount: 0,
+        timer: null,
+        timeLeft: 30,
+        startTime: 0,
+        totalTimeTaken: 0,
+        isAnswered: false,
+        log: []
+      };
+
+      showScreen('screen-gameplay');
+      loadQuestion(0);
+    }
+
+    /* Load Question & Start 30s Timer */
+    function loadQuestion(index) {
+      if (index >= QUESTION_BANK.length) {
+        finishGame();
+        return;
+      }
+
+      const qData = QUESTION_BANK[index];
+      game.currentIndex = index;
+      game.isAnswered = false;
+
+      // Hide Feedback Drawer
+      const feedback = document.getElementById('feedback-drawer');
+      if (feedback) feedback.classList.remove('is-visible');
+
+      // Update HUD
+      const badge = document.getElementById('level-badge');
+      if (badge) {
+        badge.textContent = qData.levelLabel;
+        badge.className = `level-badge ${qData.difficulty}`;
+      }
+
+      const counter = document.getElementById('question-counter');
+      if (counter) counter.textContent = `Questão ${index + 1} de ${QUESTION_BANK.length}`;
+
+      const scoreEl = document.getElementById('hud-score');
+      if (scoreEl) scoreEl.textContent = game.score.toLocaleString('pt-BR');
+
+      const mult = game.streak >= 5 ? 2.0 : (game.streak >= 3 ? 1.5 : (game.streak >= 1 ? 1.2 : 1.0));
+      const comboEl = document.getElementById('hud-combo');
+      if (comboEl) comboEl.textContent = `(${mult.toFixed(1)}x Combo)`;
+
+      // Stem & Code
+      const stemEl = document.getElementById('question-stem');
+      if (stemEl) stemEl.textContent = qData.stem;
+
+      const sqlBox = document.getElementById('sql-box');
+      if (sqlBox) {
+        if (qData.code) {
+          sqlBox.style.display = 'block';
+          sqlBox.textContent = qData.code;
+        } else {
+          sqlBox.style.display = 'none';
+        }
+      }
+
+      // Prepare Randomized Options while keeping track of correct text
+      const correctText = qData.options[qData.correctIndex];
+      let shuffledOptions = shuffle(qData.options);
+
+      // Duplo embaralhamento garantido para eliminar vieses de posição inicial
+      shuffledOptions = shuffle(shuffledOptions);
+      const newCorrectIndex = shuffledOptions.indexOf(correctText);
+
+      // Save mapped question state for this run
+      game.currentQ = {
+        stem: qData.stem,
+        options: shuffledOptions,
+        correctIndex: newCorrectIndex,
+        basePoints: qData.basePoints,
+        explanation: qData.explanation
+      };
+
+      // Render Options
+      const container = document.getElementById('options-container');
+      const letters = ['A', 'B', 'C', 'D'];
+      if (container) {
+        container.innerHTML = shuffledOptions.map((opt, i) => `
+          <button type="button" class="option-btn" id="opt-btn-${i}" onclick="selectAnswer(${i})">
+            <span class="option-key">[${letters[i]}]</span>
+            <span>${escapeHtml(opt)}</span>
+          </button>
+        `).join('');
+      }
+
+      // Start 30-Second Timer
+      startTimer(30);
+    }
+
+    /* 30-Second Timer Control */
+    function startTimer(seconds) {
+      clearInterval(game.timer);
+      game.timeLeft = seconds;
+      game.startTime = Date.now();
+
+      const timerBar = document.getElementById('timer-bar');
+      if (timerBar) {
+        timerBar.style.transform = 'scaleX(1)';
+        timerBar.className = 'timer-bar';
+      }
+
+      game.timer = setInterval(() => {
+        const elapsed = (Date.now() - game.startTime) / 1000;
+        game.timeLeft = Math.max(0, seconds - elapsed);
+
+        const fraction = game.timeLeft / seconds;
+        if (timerBar) {
+          timerBar.style.transform = `scaleX(${fraction})`;
+          if (fraction <= 0.25) {
+            timerBar.className = 'timer-bar timer-danger';
+          } else if (fraction <= 0.5) {
+            timerBar.className = 'timer-bar timer-warning';
+          } else {
+            timerBar.className = 'timer-bar';
+          }
+        }
+
+        if (game.timeLeft <= 0) {
+          clearInterval(game.timer);
+          handleTimeExpired();
+        }
+      }, 100);
+    }
+
+    function handleTimeExpired() {
+      if (game.isAnswered) return;
+      selectAnswer(-1); // -1 indicates timeout
+    }
+
+    /* Select Answer & Process Score */
+    function selectAnswer(index) {
+      if (game.isAnswered) return;
+      clearInterval(game.timer);
+      game.isAnswered = true;
+
+      const q = game.currentQ;
+      const isTimeout = (index === -1);
+      const isCorrect = !isTimeout && (index === q.correctIndex);
+      const timeSpent = (Date.now() - game.startTime) / 1000;
+      game.totalTimeTaken += timeSpent;
+
+      // Lock buttons & Highlight answers
+      const buttons = document.querySelectorAll('.option-btn');
+      buttons.forEach((btn, i) => {
+        btn.disabled = true;
+        if (i === q.correctIndex) {
+          btn.classList.add('is-correct');
+        } else if (i === index) {
+          btn.classList.add('is-wrong');
+        }
+      });
+
+      let ptsEarned = 0;
+      if (isCorrect) {
+        game.correctCount++;
+        game.streak++;
+        if (game.streak > game.maxStreak) game.maxStreak = game.streak;
+
+        const mult = game.streak >= 5 ? 2.0 : (game.streak >= 3 ? 1.5 : (game.streak >= 1 ? 1.2 : 1.0));
+        const speedBonus = Math.round((game.timeLeft / 30) * 100);
+        ptsEarned = Math.round((q.basePoints * mult) + speedBonus);
+
+        game.score += ptsEarned;
+        sounds.playCorrect();
+      } else {
+        game.streak = 0; // Reset streak
+        sounds.playWrong();
+      }
+
+      // Log answer
+      game.log.push({
+        stem: q.stem,
+        options: q.options,
+        selectedIndex: index,
+        correctIndex: q.correctIndex,
+        isCorrect: isCorrect,
+        isTimeout: isTimeout,
+        ptsEarned: ptsEarned,
+        explanation: q.explanation
+      });
+
+      // Show Feedback
+      showFeedback(isCorrect, isTimeout, ptsEarned, q);
+    }
+
+    function showFeedback(isCorrect, isTimeout, pts, q) {
+      const drawer = document.getElementById('feedback-drawer');
+      const title = document.getElementById('feedback-title');
+      const ptsEl = document.getElementById('feedback-pts');
+      const exp = document.getElementById('feedback-exp');
+
+      if (!drawer) return;
+
+      if (isCorrect) {
+        title.textContent = '✓ RESPOSTA CORRETA!';
+        title.style.color = 'var(--positive)';
+        ptsEl.textContent = `+${pts} PTS`;
+        ptsEl.style.color = 'var(--positive)';
+      } else if (isTimeout) {
+        title.textContent = '⏱ TEMPO ESGOTADO! (Vez Perdida)';
+        title.style.color = 'var(--error)';
+        ptsEl.textContent = '+0 PTS';
+        ptsEl.style.color = 'var(--error)';
+      } else {
+        title.textContent = '✗ RESPOSTA INCORRETA!';
+        title.style.color = 'var(--error)';
+        ptsEl.textContent = '+0 PTS';
+        ptsEl.style.color = 'var(--error)';
+      }
+
+      exp.innerHTML = `
+        <strong>Resposta Correta:</strong> [${['A','B','C','D'][q.correctIndex]}] ${escapeHtml(q.options[q.correctIndex])}<br><br>
+        <strong>Explicação:</strong> ${escapeHtml(q.explanation)}
+      `;
+
+      drawer.classList.add('is-visible');
+    }
+
+    function handleNextQuestion() {
+      loadQuestion(game.currentIndex + 1);
+    }
+
+    /* Finish Game & Render Results */
+    function finishGame() {
+      showScreen('screen-results');
+
+      const total = QUESTION_BANK.length;
+      const accuracy = Math.round((game.correctCount / total) * 100);
+      const avgTime = (game.totalTimeTaken / total).toFixed(1);
+
+      document.getElementById('res-score').textContent = game.score.toLocaleString('pt-BR');
+      document.getElementById('res-accuracy').textContent = `${accuracy}% (${game.correctCount}/${total})`;
+      document.getElementById('res-combo').textContent = `${game.maxStreak}x`;
+      document.getElementById('res-speed').textContent = `${avgTime}s`;
+
+      // Rank Title & Trophy
+      let rankTitle = 'DBA Junior';
+      let rankDesc = 'Bom começo! Revise os conceitos de transações e agendamento de tarefas.';
+      let trophy = '🛡️';
+
+      if (accuracy >= 90) {
+        rankTitle = 'Arquiteto Master de Banco de Dados';
+        rankDesc = 'Desempenho espetacular! Domínio absoluto de Stored Procedures, ACID e agendamentos no pg_cron.';
+        trophy = '🏆';
+      } else if (accuracy >= 70) {
+        rankTitle = 'DBA Pleno SQL';
+        rankDesc = 'Excelente nível técnico em controle transacional e rotinas no PostgreSQL e MySQL!';
+        trophy = '💎';
+      }
+
+      document.getElementById('res-trophy').textContent = trophy;
+      document.getElementById('res-rank-title').textContent = rankTitle;
+      document.getElementById('res-rank-desc').textContent = rankDesc;
+
+      // Render Accordion
+      const list = document.getElementById('review-list');
+      if (list) {
+        list.innerHTML = game.log.map((item, idx) => `
+          <div class="review-item">
+            <div class="review-header" onclick="toggleReview(${idx})">
+              <span><strong>#${idx + 1}</strong> ${escapeHtml(item.stem)}</span>
+              <span class="review-status ${item.isCorrect ? 'status-ok' : 'status-err'}">
+                ${item.isCorrect ? 'CORRETO' : (item.isTimeout ? 'TEMPO ESGOTADO' : 'INCORRETO')}
+              </span>
+            </div>
+            <div class="review-content" id="rev-content-${idx}">
+              <p><strong>Sua resposta:</strong> ${item.selectedIndex >= 0 ? escapeHtml(item.options[item.selectedIndex]) : 'Nenhuma (Tempo esgotado)'}</p>
+              <p style="color: var(--positive);"><strong>Resposta Correta:</strong> ${escapeHtml(item.options[item.correctIndex])}</p>
+              <p style="margin-top: 4px; color: var(--on-surface-variant);"><strong>Fundamentação:</strong> ${escapeHtml(item.explanation)}</p>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function toggleReview(idx) {
+      const el = document.getElementById(`rev-content-${idx}`);
+      if (el) el.classList.toggle('is-open');
+    }
+
+    function restartGame() {
+      showScreen('screen-home');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /* Initialize Audio Toggle Listener */
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('audio-toggle-btn');
+      const iconOn = document.getElementById('audio-icon-on');
+      const iconOff = document.getElementById('audio-icon-off');
+
+      if (btn) {
+        btn.addEventListener('click', () => {
+          const isMuted = sounds.toggleMute();
+          if (iconOn) iconOn.style.display = isMuted ? 'none' : 'block';
+          if (iconOff) iconOff.style.display = isMuted ? 'block' : 'none';
+        });
+      }
+    });
+  </script>
+</body>
+</html>
